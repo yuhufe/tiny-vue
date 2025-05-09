@@ -347,7 +347,8 @@ export const isVue2 = true
 
 export const isVue3 = false
 
-export const isVnode = hooks.isVNode
+export const isVnode = (vnode) =>
+  ['isStatic', 'isRootInsert', 'isComment', 'isCloned', 'isOnce'].every((key) => typeof vnode[key] !== 'undefined')
 
 export const KeepAlive = Vue.component('KeepAlive')
 
