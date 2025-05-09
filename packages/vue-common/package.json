@@ -28,7 +28,8 @@
   "sideEffects": false,
   "main": "src/index-dev.ts",
   "scripts": {
-    "build": "pnpm -w build:ui $npm_package_name --vue-versions 2.7",
+    "build": "pnpm -w build:ui $npm_package_name",
+    "build27": "pnpm -w build:ui $npm_package_name --vue-versions 2.7",
     "//postversion": "pnpm build"
   },
   "dependencies": {
