@@ -62,12 +62,21 @@
                 @jump-to-demo="jumpToDemo"
               ></api-docs>
             </tiny-tab-item>
+            <tiny-tab-item v-if="state.tokenList?.length" title="Token" name="token">
+              <!-- 主题变量 -->
+              <design-token :name="state.cmpId" :tokenList="state.tokenList" />
+            </tiny-tab-item>
+            <tiny-tab-item v-if="mcpInfo.length > 0" title="MCP" name="MCP">
+              <McpDocs :data="mcpInfo" :name="capName" />
+            </tiny-tab-item>
           </tiny-tabs>
+
           <slot name="main-right" />
         </div>
 
         <!-- demo与api目录锚点 -->
         <aside-anchor
+          v-if="state.activeTab === 'demos' || state.activeTab === 'api'"
           :active-tab="state.activeTab"
           :current-json="state.currJson"
           :anchor-affix="state.anchorAffix"
@@ -87,19 +96,25 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch, onMounted, nextTick, ref } from 'vue'
+import { reactive, computed, watch, onMounted, nextTick, ref, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { TinyTabs, TinyTabItem } from '@opentiny/vue'
 import { debounce } from '@opentiny/utils'
 import { i18nByKey, getWord, $clone, useApiMode } from '@/tools'
 import { router } from '@/router.js'
 import { getWebdocPath } from './cmp-config'
-import DemoBox from './components/demo.vue'
-import AsideAnchor from './components/anchor.vue'
-import ComponentHeader from './components/header.vue'
-import ComponentContributor from './components/contributor.vue'
-import ApiDocs from './components/api-docs.vue'
-import useTasksFinish from './composition/useTasksFinish'
+import DemoBox from '../../components/demo.vue'
+import AsideAnchor from '../../components/anchor.vue'
+import ComponentHeader from '../../components/header.vue'
+import ComponentContributor from '../../components/contributor.vue'
+import ApiDocs from '../../components/api-docs.vue'
+import DesignToken from '../../components/design-token.vue'
+import McpDocs from '../../components/mcp-docs.vue'
+import useTasksFinish from '../../composable/useTasksFinish'
+import list from '@opentiny/vue-theme/token'
+import { cmpAnchorDataCallback } from '../../composable/useTinyRemoter'
+import { getTinyVueMcpConfig } from '@opentiny/tiny-vue-mcp'
+import { camelize, capitalize } from '@vue/shared'
 
 const props = defineProps({ loadData: {}, appMode: {}, demoKey: {} })
 
@@ -115,9 +130,10 @@ const isRunningTest = localStorage.getItem('tiny-e2e-test') === 'true'
 const anchorRefreshKey = ref(0)
 const route = useRoute()
 const state = reactive({
-  langKey: getWord('zh-CN', 'en-US'),
+  langKey: getWord('zh-CN', 'en-US', 'es-LA', 'pt-BR'),
   cmpId: '',
   observer: null,
+  tokenList: [],
   currJson: { column: 1, demos: [], apis: [], types: {} },
   mdString: '',
   currDemoId: '',
@@ -166,8 +182,10 @@ watch(
 onMounted(() => {
   loadPage()
   // 加载公共尾部
-  const common = new window.TDCommon(['#footer'], { allowDarkTheme: true })
-  common.renderFooter()
+  nextTick(() => {
+    const common = new window.TDCommon(['#footer'], { allowDarkTheme: true })
+    common.renderFooter()
+  })
   setScrollListener()
 })
 
@@ -181,7 +199,6 @@ const parseApiData = () => {
   if (!state.currJson.apis?.length) {
     return {}
   }
-
   const tableData = {}
   const apis = state.currJson.apis || []
   for (const apiGroup of apis) {
@@ -274,7 +291,7 @@ const demoMounted = () => {
 }
 
 const loadPage = () => {
-  const lang = getWord('cn', 'en')
+  const lang = getWord('cn', 'en', 'es', 'pt')
   state.cmpId = router.currentRoute.value.params.cmpId
 
   state.chartCode = getWebdocPath(state.cmpId) === 'chart'
@@ -303,7 +320,7 @@ const loadPage = () => {
         document.querySelector('.tiny-tabs__header').style.display = 'none'
       }
     }
-
+    state.tokenList = list[state.cmpId] || []
     const { finishTask, waitTasks: allDemoMounted } = useTasksFinish(state.currJson.demos.length)
     finishMountTask = finishTask
 
@@ -433,6 +450,31 @@ const handleAnchorClick = (e, data) => {
     scrollByHash(hash)
   }
 }
+
+// 页面加载时，创建一个返回 anchor data的函数。 这样工具调用时，可以拿到最新 anchor 信息
+cmpAnchorDataCallback.value = () => state.currJson.demos
+onUnmounted(() => {
+  cmpAnchorDataCallback.value = null
+})
+
+// MCP tab页签的数据
+const mcpTools = getTinyVueMcpConfig({ t: null })
+const capName = computed(() => capitalize(camelize(state.cmpId || '')))
+
+const mcpInfo = computed(() => {
+  const schema = mcpTools.components[capName.value]?.paramsSchema
+  if (schema) {
+    return Object.keys(schema).map((name) => {
+      const item = schema[name]
+      return {
+        name,
+        param: item._def?.innerType?._def?.typeName || '',
+        desc: item._def?.description || ''
+      }
+    })
+  }
+  return []
+})
 
 defineExpose({ loadPage })
 </script>

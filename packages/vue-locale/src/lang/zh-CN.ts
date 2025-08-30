@@ -10,8 +10,8 @@
  *
  */
 export default {
-  'en-US': '英语',
-  'zh-CN': '中文',
+  'enUS': '英语',
+  'zhCN': '中文',
   'zh-TW': '中国台湾',
   hello: '你好 {name}',
   code: 'zh-CN',
@@ -118,7 +118,7 @@ export default {
       value: '数值'
     },
     colorSelectPanel: {
-      confirm: '选择',
+      confirm: '确定',
       cancel: '取消',
       predefine: '预定义颜色',
       history: '历史记录',
